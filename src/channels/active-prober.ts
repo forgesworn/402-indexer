@@ -208,8 +208,81 @@ export async function probeWellKnownX402(
   }
 }
 
+/** L402 manifest at .well-known/l402 (satgate format) */
+export interface L402Manifest {
+  name?: string
+  description?: string
+  endpoints?: { path?: string; method?: string; description?: string }[]
+  pricing?: { unit?: string; currency?: string; default?: { perThousandTokens?: number }; models?: Record<string, unknown> }
+  payment?: { methods?: string[] }
+  capabilities?: Record<string, unknown>
+}
+
 /**
- * Smart probe: tries the URL directly, then .well-known/x402.json,
+ * Probe .well-known/l402 manifest for L402 service discovery.
+ */
+export async function probeWellKnownL402(
+  baseUrl: string,
+  userAgent: string = DEFAULT_USER_AGENT,
+): Promise<ProbeResult | null> {
+  try {
+    const origin = new URL(baseUrl).origin
+    const manifestUrl = `${origin}/.well-known/l402`
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS)
+
+    const response = await fetch(manifestUrl, {
+      headers: { 'User-Agent': userAgent },
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+
+    if (!response.ok) return null
+
+    const manifest = await response.json() as L402Manifest
+    if (!manifest.name && !manifest.endpoints?.length) return null
+
+    const paymentMethods: PaymentMethod[] = []
+    const pricing: PricingEntry[] = []
+
+    // Determine payment rails from manifest
+    const methods = manifest.payment?.methods ?? []
+    if (methods.includes('lightning') || methods.length === 0) {
+      paymentMethods.push({ rail: 'l402', params: ['lightning'] })
+    }
+    if (methods.includes('cashu')) {
+      paymentMethods.push({ rail: 'cashu', params: [] })
+    }
+    if (paymentMethods.length === 0) {
+      paymentMethods.push({ rail: 'l402', params: ['lightning'] })
+    }
+
+    // Extract pricing from manifest
+    if (manifest.pricing?.default?.perThousandTokens) {
+      pricing.push({
+        capability: manifest.endpoints?.[0]?.description ?? manifest.name ?? 'default',
+        amount: manifest.pricing.default.perThousandTokens,
+        currency: manifest.pricing.currency?.toLowerCase() ?? 'sats',
+      })
+    }
+
+    return {
+      url: manifest.endpoints?.[0]?.path
+        ? `${origin}${manifest.endpoints[0].path}`
+        : baseUrl,
+      is402: true,
+      paymentMethods,
+      pricing,
+      statusCode: 200,
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Smart probe: tries the URL directly, then .well-known/l402, then .well-known/x402.json,
  * then common API paths. Returns on first 402 hit.
  */
 export async function probeService(
@@ -220,11 +293,15 @@ export async function probeService(
   const direct = await probeUrl(url, userAgent)
   if (direct.is402) return direct
 
-  // 2. Check .well-known/x402.json manifest
+  // 2. Check .well-known/l402 manifest
+  const l402Manifest = await probeWellKnownL402(url, userAgent)
+  if (l402Manifest) return l402Manifest
+
+  // 3. Check .well-known/x402.json manifest
   const manifest = await probeWellKnownX402(url, userAgent)
   if (manifest) return manifest
 
-  // 3. Try common API paths (only if the URL is a bare domain)
+  // 4. Try common API paths (only if the URL is a bare domain)
   try {
     const parsed = new URL(url)
     if (parsed.pathname === '/' || parsed.pathname === '') {
