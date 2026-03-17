@@ -19,9 +19,6 @@ export async function publishEvent(
   event: VerifiedEvent,
   relayUrls: string[],
 ): Promise<PublishResult> {
-  let accepted = 0
-  let failed = 0
-
   const results = await Promise.allSettled(
     relayUrls.map(async (url) => {
       const relay = await Promise.race([
@@ -33,16 +30,14 @@ export async function publishEvent(
 
       try {
         await relay.publish(event)
-        accepted++
       } finally {
         relay.close()
       }
     }),
   )
 
-  for (const r of results) {
-    if (r.status === 'rejected') failed++
-  }
+  const accepted = results.filter(r => r.status === 'fulfilled').length
+  const failed = results.filter(r => r.status === 'rejected').length
 
   return { accepted, failed }
 }

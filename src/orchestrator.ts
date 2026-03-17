@@ -8,14 +8,14 @@ import { parseSuggestionEvent } from './channels/community-listener.js'
 import { StateStore } from './health/state-store.js'
 import { runHealthChecks } from './health/health-checker.js'
 import { determineStatus, shouldDelist } from './health/lifecycle.js'
-import { parseServiceEvent } from './event-parser.js'
 import { buildServiceEvent } from './publisher/event-builder.js'
 import { publishEvent, deleteEvent } from './publisher/relay-publisher.js'
 import { KIND_COMMUNITY_SUGGESTION } from './types.js'
 import type { DiscoveredService } from './types.js'
 import { Relay } from 'nostr-tools/relay'
-import { verifyEvent } from 'nostr-tools/pure'
+import { verifyEvent, getPublicKey } from 'nostr-tools/pure'
 import type { NostrEvent } from 'nostr-tools/pure'
+import { hexToBytes } from './utils.js'
 
 /**
  * Schedule a task to run immediately, then at a fixed interval.
@@ -61,6 +61,8 @@ async function main(): Promise<void> {
   const indexedServices: Map<string, DiscoveredService> = new Map()
   // Track indexer event IDs for NIP-09 deletion
   const indexerEventIds: Map<string, string> = new Map()
+  // Derive indexer pubkey from secret key for NIP-09 dedup
+  const indexerPubkey = getPublicKey(hexToBytes(config.secretKey))
 
   console.log('402-indexer starting...')
   console.log(`  Seed URLs: ${config.seedUrls.length}`)
@@ -122,20 +124,11 @@ async function main(): Promise<void> {
     const events = await aggregateFromRelays(config.subscribeRelays)
     console.log(`[nostr-aggregator] received ${events.length} events`)
 
-    // Parse operator self-announced services
-    const indexerPubkey = '' // Derived from secretKey at startup — see config
-    for (const event of events) {
-      const service = parseServiceEvent(event)
-      if (!service) continue
-      // Track for URL-based dedup
-      if (event.pubkey !== indexerPubkey) {
-        // Operator self-announced — check if we have an indexer event for the same URL
-        const superseded = findSupersededIndexerEvents(events, indexerPubkey)
-        for (const sup of superseded) {
-          console.log(`[nostr-aggregator] deleting superseded indexer event ${sup.id}`)
-          await deleteEvent(config.secretKey, sup.id, config.publishRelays)
-        }
-      }
+    // Check for indexer events superseded by operator self-announcements
+    const superseded = findSupersededIndexerEvents(events, indexerPubkey)
+    for (const sup of superseded) {
+      console.log(`[nostr-aggregator] deleting superseded indexer event ${sup.id}`)
+      await deleteEvent(config.secretKey, sup.id, config.publishRelays)
     }
   }, config.probeIntervalMs)
 
