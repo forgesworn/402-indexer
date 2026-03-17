@@ -1,0 +1,22 @@
+[Unit]
+Description=402-indexer — Nostr-native 402 API crawler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=indexer
+WorkingDirectory=/opt/402-indexer
+ExecStart=/usr/bin/node dist/orchestrator.js
+Restart=on-failure
+RestartSec=10
+EnvironmentFile=/opt/402-indexer/.env
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/402-indexer/health-state.json
+
+[Install]
+WantedBy=multi-user.target
