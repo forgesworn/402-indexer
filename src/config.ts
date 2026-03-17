@@ -28,11 +28,17 @@ export function loadConfig(): IndexerConfig {
   }
 
   let seedUrls: string[] = []
-  try {
-    seedUrls = JSON.parse(readFileSync(join(CONFIG_DIR, 'seed-urls.json'), 'utf-8'))
-  } catch {
-    // No seed URLs configured
+  // Load all seed URL files from config directory
+  for (const seedFile of ['seed-urls.json', 'x402-seeds.json']) {
+    try {
+      const urls = JSON.parse(readFileSync(join(CONFIG_DIR, seedFile), 'utf-8'))
+      if (Array.isArray(urls)) seedUrls.push(...urls)
+    } catch {
+      // Seed file not found — skip
+    }
   }
+  // Deduplicate
+  seedUrls = [...new Set(seedUrls)]
 
   let relayConfig = { subscribe: [] as string[], publish: [] as string[] }
   try {
