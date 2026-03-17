@@ -96,11 +96,24 @@ export async function checkResponseSignals(
 
   // Signal 2: CORS headers exposing payment capability
   const corsExpose = response.headers.get('access-control-expose-headers') ?? ''
-  if (/www-authenticate|payment-required|x-payment/i.test(corsExpose)) {
+  const corsAllow = response.headers.get('access-control-allow-headers') ?? ''
+  const allCors = `${corsExpose} ${corsAllow}`.toLowerCase()
+  if (/www-authenticate|payment-required|x-payment/i.test(allCors)) {
+    // Determine rail from CORS header signals:
+    // X-Payment, X-Payment-Required, PAYMENT-REQUIRED → x402
+    // WWW-Authenticate alone → l402
+    // Both → both rails
+    const hasX402Signal = /x-payment|payment-required|payment-response/i.test(allCors)
+    const hasL402Signal = /www-authenticate/i.test(allCors)
+    const methods: PaymentMethod[] = []
+    if (hasX402Signal) methods.push({ rail: 'x402', params: [] })
+    if (hasL402Signal) methods.push({ rail: 'l402', params: ['lightning'] })
+    if (methods.length === 0) methods.push({ rail: 'l402', params: ['lightning'] })
+
     return {
       url,
       is402: true,
-      paymentMethods: [{ rail: 'l402' as const, params: ['lightning'] }],
+      paymentMethods: methods,
       pricing: [],
       statusCode: response.status,
       detectionMethod: 'cors-headers',
@@ -112,10 +125,12 @@ export async function checkResponseSignals(
   const xPricing = response.headers.get('x-pricing')
   const acceptPayment = response.headers.get('accept-payment')
   if (xPaymentMethods || xPricing || acceptPayment) {
+    // Infer rail from header names — X-Payment-* is x402 convention
+    const rail = xPaymentMethods ? 'x402' as const : 'l402' as const
     return {
       url,
       is402: true,
-      paymentMethods: [{ rail: 'l402' as const, params: ['lightning'] }],
+      paymentMethods: [{ rail, params: rail === 'l402' ? ['lightning'] : [] }],
       pricing: [],
       statusCode: response.status,
       detectionMethod: 'payment-headers',
