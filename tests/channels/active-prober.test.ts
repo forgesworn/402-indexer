@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { probeUrl, parseL402Challenge, parseX402Challenge } from '../../src/channels/active-prober.js'
+import { probeUrl, probeService, probeWellKnownX402, parseL402Challenge, parseX402Challenge } from '../../src/channels/active-prober.js'
 
 // Mock global fetch
 const mockFetch = vi.fn()
@@ -133,5 +133,99 @@ describe('probeUrl', () => {
         }),
       }),
     )
+  })
+})
+
+describe('probeWellKnownX402', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('detects x402 service from .well-known/x402.json manifest', async () => {
+    mockFetch.mockResolvedValue(
+      mockResponse(200, { 'content-type': 'application/json' }, JSON.stringify({
+        resources: [{
+          url: 'https://api.example.com/chat',
+          price: 0.01,
+          network: 'base',
+          asset: 'usdc',
+          receiver: '0xabc123',
+          description: 'AI chat endpoint',
+        }],
+      })),
+    )
+
+    const result = await probeWellKnownX402('https://api.example.com')
+    expect(result).not.toBeNull()
+    expect(result!.is402).toBe(true)
+    expect(result!.paymentMethods[0].rail).toBe('x402')
+    expect(result!.paymentMethods[0].params).toEqual(['base', 'usdc', '0xabc123'])
+    expect(result!.pricing[0].amount).toBe(0.01)
+  })
+
+  it('returns null when manifest does not exist', async () => {
+    mockFetch.mockResolvedValue(mockResponse(404, {}))
+    const result = await probeWellKnownX402('https://no-manifest.com')
+    expect(result).toBeNull()
+  })
+
+  it('returns null when manifest has no resources', async () => {
+    mockFetch.mockResolvedValue(
+      mockResponse(200, {}, JSON.stringify({ resources: [] })),
+    )
+    const result = await probeWellKnownX402('https://empty.com')
+    expect(result).toBeNull()
+  })
+})
+
+describe('probeService', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns direct probe result when URL returns 402', async () => {
+    mockFetch.mockResolvedValue(
+      mockResponse(402, {
+        'www-authenticate': 'L402 macaroon="abc", invoice="lnbc1ptest"',
+      }),
+    )
+
+    const result = await probeService('https://api.example.com/endpoint')
+    expect(result.is402).toBe(true)
+    expect(result.paymentMethods[0].rail).toBe('l402')
+  })
+
+  it('falls back to .well-known/x402.json when direct probe returns non-402', async () => {
+    mockFetch
+      .mockResolvedValueOnce(mockResponse(200, {})) // direct probe returns 200
+      .mockResolvedValueOnce( // .well-known/x402.json returns manifest
+        mockResponse(200, {}, JSON.stringify({
+          resources: [{
+            url: 'https://api.example.com/paid',
+            price: 0.05,
+            network: 'base',
+            asset: 'usdc',
+            receiver: '0xdef456',
+          }],
+        })),
+      )
+
+    const result = await probeService('https://api.example.com/')
+    expect(result.is402).toBe(true)
+    expect(result.paymentMethods[0].rail).toBe('x402')
+  })
+
+  it('tries common API paths for bare domains', async () => {
+    mockFetch
+      .mockResolvedValueOnce(mockResponse(200, {})) // root returns 200
+      .mockResolvedValueOnce(mockResponse(404, {})) // .well-known returns 404
+      .mockResolvedValueOnce( // /api returns 402
+        mockResponse(402, {
+          'www-authenticate': 'L402 macaroon="abc", invoice="lnbc1p"',
+        }),
+      )
+
+    const result = await probeService('https://api.example.com/')
+    expect(result.is402).toBe(true)
   })
 })
