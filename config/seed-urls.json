@@ -1,4 +1,18 @@
 [
   "https://jokes.trotters.dev/api/joke",
-  "https://satgate.trotters.dev/v1/chat"
+  "https://satgate.trotters.dev/v1/chat",
+
+  "https://api.fewsats.com/v0/gateway",
+  "https://tools.l402.org",
+  "https://l402.directory/api/services",
+  "https://api.cdp.coinbase.com/platform/v2/x402/discovery/resources",
+
+  "https://satring.com/api/v1/services/bulk",
+  "https://l402-shield.example.com",
+
+  "https://www.cybercentry.com/api",
+  "https://x402-playground.coinbase.com",
+
+  "https://maximumsats.com/api",
+  "https://hyperdope.com/api"
 ]

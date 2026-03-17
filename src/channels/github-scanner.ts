@@ -96,10 +96,17 @@ export const DEPENDENCY_MARKERS = [
   '@thecryptodonkey/toll-booth',
   '402-announce',
   '@coinbase/x402',
+  'x402',
+  '@x402/',
+  'x402-express',
+  'x402-hono',
+  'x402-next',
   'x402-js',
   'lsat-js',
   'lnurl',
   'aperture',
+  'fewsats',
+  'l402-python',
 ]
 
 /**
