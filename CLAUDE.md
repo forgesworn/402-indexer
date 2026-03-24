@@ -35,9 +35,28 @@ src/
   config.ts                    # Env vars + config file loading
 ```
 
+## Environment variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `INDEXER_SECRET_KEY` | Yes | — | 64-char hex Nostr secret key for signing published events |
+| `GITHUB_TOKEN` | No | — | GitHub API token for `github-scanner` channel |
+| `HEALTH_STATE_PATH` | No | `health-state.json` | Path to health check state persistence file |
+
+Relay URLs and seed URLs are loaded from JSON files in `config/` (`relays.json`, `seed-urls.json`, `x402-seeds.json`).
+
+## Testing
+
+```bash
+pnpm test                                    # all tests
+npx vitest run src/path/to/file.test.ts      # single test file
+```
+
 ## Conventions
 
 - **British English** — colour, initialise, behaviour, licence
+- **pnpm** for package management
+- **ESM-only** — `"type": "module"`
 - **Git:** commit messages use `type: description` format
 - **Git:** Do NOT include `Co-Authored-By` lines
 - **TDD** — write failing test first, then implement
