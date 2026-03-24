@@ -14,7 +14,14 @@
     "start": "node dist/orchestrator.js",
     "lint": "tsc --noEmit"
   },
-  "keywords": ["l402", "x402", "nostr", "402", "lightning", "paid-api"],
+  "keywords": [
+    "l402",
+    "x402",
+    "nostr",
+    "402",
+    "lightning",
+    "paid-api"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -30,5 +37,9 @@
     "typescript": "^5.7.0",
     "vitest": "^3.0.0",
     "@types/node": "^22.0.0"
+  },
+  "funding": {
+    "type": "lightning",
+    "url": "lightning:thedonkey@strike.me"
   }
 }
