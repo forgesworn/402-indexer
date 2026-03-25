@@ -7,12 +7,19 @@
   "bin": {
     "402-indexer": "dist/orchestrator.js"
   },
+  "files": [
+    "dist/",
+    "config/",
+    "LICENCE",
+    "llms.txt"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
     "start": "node dist/orchestrator.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "l402",
@@ -20,8 +27,13 @@
     "nostr",
     "402",
     "lightning",
-    "paid-api"
+    "paid-api",
+    "indexer",
+    "crawler",
+    "discovery",
+    "service-directory"
   ],
+  "author": "TheCryptoDonkey",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -34,9 +46,12 @@
     "nostr-tools": "^2.12.0"
   },
   "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@types/node": "^22.0.0",
+    "semantic-release": "^24.0.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.0.0",
-    "@types/node": "^22.0.0"
+    "vitest": "^3.0.0"
   },
   "funding": {
     "type": "lightning",

@@ -24,22 +24,24 @@ Discovered services are verified daily. Endpoints that become unreachable are ma
 
 ```bash
 # Install
-npm install
-
-# Configure (see config section below)
-cp config/default.json config/local.json
+pnpm install
 
 # Build and run
-npm run build
-npm start
+pnpm build
+pnpm start
 ```
 
 ## Configuration
 
-The indexer reads from `config/local.json` and environment variables:
+The indexer reads from JSON files in `config/` and environment variables:
 
-- `NOSTR_NSEC` — Nostr secret key for signing kind 31402 events
-- `RELAYS` — Comma-separated relay URLs
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `INDEXER_SECRET_KEY` | Yes | -- | 64-char hex Nostr secret key for signing events |
+| `GITHUB_TOKEN` | No | -- | GitHub API token for GitHub scanner channel |
+| `HEALTH_STATE_PATH` | No | `health-state.json` | Path to health check state file |
+
+Relay URLs and seed URLs are loaded from `config/relays.json`, `config/seed-urls.json`, and `config/x402-seeds.json`.
 
 ## Part of the 402 ecosystem
 

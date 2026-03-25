@@ -1,0 +1,63 @@
+# 402-indexer
+
+> Nostr-native crawler that discovers L402 and x402 paid APIs across the web and publishes kind 31402 events for decentralised service discovery. Feeds the 402.pub directory and 402-mcp (AI agent client).
+
+GitHub: https://github.com/forgesworn/402-indexer
+
+## What it does
+
+The indexer finds paid APIs through multiple discovery channels and announces them on Nostr so clients like 402-mcp and the 402.pub directory can discover them automatically. Services are health-checked daily; unreachable endpoints are marked stale and eventually delisted.
+
+## Discovery channels
+
+- **Active prober** -- HTTP probe for `WWW-Authenticate: L402`, `402 Payment Required`, IETF Payment headers, x402 well-known paths, and HTML meta tags
+- **Nostr aggregator** -- Subscribe to existing kind 31402 events across relays
+- **GitHub scanner** -- Search GitHub for repos using L402/x402 patterns
+- **npm scanner** -- Find packages depending on toll-booth, aperture, and other L402 libraries
+- **Registry scanner** -- Fetch from Satring, awesome-L402, x402.org, awesome-cashu, and cashumints.space
+- **Community listener** -- Accept kind 1402 suggestion events from users
+
+## Detection methods
+
+The active prober recognises these signals:
+- `status-402` -- HTTP 402 Payment Required status code
+- `ietf-payment` -- IETF Payment authentication headers (draft-ryan-httpauth-payment-01)
+- `cors-headers` -- CORS headers exposing payment information
+- `well-known-l402` -- /.well-known/l402 endpoint
+- `well-known-x402` -- /.well-known/x402 endpoint
+- `payment-headers` -- X-Payment or similar custom headers
+- `html-meta` -- HTML meta tags indicating payment support
+- `link-header` -- HTTP Link headers pointing to payment resources
+- `api-path-probe` -- Known API path patterns returning 402
+
+## Health lifecycle
+
+- **active** -- Endpoint responding and accepting payments
+- **stale** -- 3+ consecutive probe failures
+- **unreachable** -- 7+ consecutive failures
+- Delisted after 30+ days unreachable (NIP-09 deletion event published)
+
+## Payment rails recognised
+
+- `l402` -- Lightning L402 (macaroon + preimage)
+- `x402` -- On-chain stablecoin payments (Coinbase protocol)
+- `cashu` -- Cashu ecash tokens
+- `xcashu` -- Extended Cashu protocol
+- `payment` -- IETF Payment (draft-ryan-httpauth-payment-01)
+
+## Configuration
+
+Environment variables:
+- `INDEXER_SECRET_KEY` (required) -- 64-char hex Nostr secret key
+- `GITHUB_TOKEN` (optional) -- GitHub API token for scanner
+- `HEALTH_STATE_PATH` (optional) -- Path to health state JSON file
+
+Relay and seed URL configuration via JSON files in `config/`.
+
+## Part of the 402 ecosystem
+
+- **toll-booth** -- L402 middleware (gate any API behind Lightning)
+- **402-announce** -- Publish kind 31402 service announcements
+- **402-mcp** -- AI agents discover, pay for, and consume 402 APIs
+- **402.pub** -- Live service directory
+- **402-indexer** -- Crawl and index paid APIs (this package)
