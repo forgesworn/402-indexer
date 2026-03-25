@@ -1,0 +1,242 @@
+# 402-indexer — Full Reference
+
+> Nostr-native crawler that discovers L402 and x402 paid APIs across the web and publishes kind 31402 events for decentralised service discovery. Feeds the 402.pub directory and the 402-mcp AI agent client.
+
+GitHub: https://github.com/forgesworn/402-indexer
+Version: 0.1.0
+
+## What it does
+
+402-indexer runs as a persistent background process. It discovers paid APIs through multiple channels, publishes them as kind 31402 Nostr events, health-checks them daily, and automatically delists endpoints that go unreachable.
+
+It is the supply side of the L402/x402 discovery ecosystem: operators run 402-indexer; clients use 402-mcp or 402.pub to consume the results.
+
+---
+
+## Running
+
+```bash
+# Required
+export INDEXER_SECRET_KEY=<64-char-hex-nostr-secret-key>
+
+# Optional
+export GITHUB_TOKEN=<github-api-token>
+export HEALTH_STATE_PATH=health-state.json
+
+pnpm start
+```
+
+Relay URLs are loaded from `config/relays.json`. Seed URLs from `config/seed-urls.json` and `config/x402-seeds.json`.
+
+---
+
+## Architecture
+
+Five discovery channels run in parallel:
+
+### Channel 1: Active Prober (`src/channels/active-prober.ts`)
+
+HTTP probes every URL in the probe list. Detects paid APIs by inspecting response headers and status codes.
+
+**Detection signals:**
+- `status-402` — HTTP 402 Payment Required status code
+- `ietf-payment` — IETF Payment authentication headers (draft-ryan-httpauth-payment-01)
+- `cors-headers` — CORS headers exposing payment information
+- `well-known-l402` — `/.well-known/l402` endpoint
+- `well-known-x402` — `/.well-known/x402` endpoint
+- `payment-headers` — `X-Payment` or similar custom headers
+- `html-meta` — HTML meta tags indicating payment support
+- `link-header` — HTTP `Link` headers pointing to payment resources
+- `api-path-probe` — known API path patterns returning 402
+
+### Channel 2: GitHub Scanner (`src/channels/github-scanner.ts`)
+
+Searches GitHub for repositories using L402/x402 patterns. Adds discovered URLs to the probe list.
+
+Requires `GITHUB_TOKEN` for higher rate limits.
+
+### Channel 3: npm Scanner (`src/channels/npm-scanner.ts`)
+
+Scans npm for packages depending on toll-booth, aperture, and other L402/x402 libraries.
+
+### Channel 4: Nostr Aggregator (`src/channels/nostr-aggregator.ts`)
+
+Subscribes to kind 31402 events across configured relays. Detects operator self-announcements that supersede indexer-published events; removes the indexer's duplicate via NIP-09 deletion.
+
+### Channel 5: Community Listener (`src/channels/community-listener.ts`)
+
+Listens for kind 1402 suggestion events from users. Adds suggested URLs to the probe list after signature verification.
+
+### Registry Scanner (`src/channels/registry-scanner.ts`)
+
+Fetches from Satring, awesome-L402, x402.org, awesome-cashu, and cashumints.space registries.
+
+---
+
+## Health Lifecycle (`src/health/`)
+
+Services transition through three states:
+
+| Status | Meaning |
+|--------|---------|
+| `active` | Endpoint responding and returning 402 challenges |
+| `stale` | 3+ consecutive probe failures |
+| `unreachable` | 7+ consecutive failures |
+
+Services unreachable for 30+ days are delisted: a NIP-09 deletion event is published and the service is removed from the index.
+
+Health state is persisted to a JSON file (`HEALTH_STATE_PATH`).
+
+---
+
+## Publishing (`src/publisher/`)
+
+### `event-builder.ts`
+
+Builds a signed kind 31402 Nostr event from a `DiscoveredService`. Sets all standard tags: `d`, `name`, `about`, `url`, `pmi` (payment method info), `pricing`, `source`, `status`.
+
+### `relay-publisher.ts`
+
+Signs and publishes events to the configured relay list. Supports NIP-09 deletion for delisting stale services.
+
+---
+
+## Core Types (`src/types.ts`)
+
+### `DiscoveredService`
+
+```typescript
+interface DiscoveredService {
+  identifier: string         // Nostr d-tag identifier
+  name: string               // Service name
+  about: string              // Service description
+  urls: string[]             // Transport URLs (1–10)
+  paymentMethods: PaymentMethod[]  // Payment rails supported
+  pricing: PricingEntry[]    // Per-capability pricing
+  source: EventSource        // How the service was discovered
+  verified?: string          // Last successful verification (ISO 8601)
+  status: ServiceStatus      // Current health status
+  pubkey?: string            // Nostr pubkey of event author
+  topics?: string[]          // Topic tags
+  capabilities?: unknown[]   // Capability metadata (from event content)
+}
+```
+
+### `PaymentMethod`
+
+```typescript
+interface PaymentMethod {
+  rail: PaymentRail          // 'l402' | 'x402' | 'cashu' | 'xcashu' | 'payment'
+  params: string[]           // Additional positional elements
+}
+```
+
+### `PricingEntry`
+
+```typescript
+interface PricingEntry {
+  capability: string
+  amount: number             // In smallest currency unit (satoshis, cents, etc.)
+  currency: string
+}
+```
+
+### `ProbeResult`
+
+```typescript
+interface ProbeResult {
+  url: string
+  is402: boolean                     // Whether the endpoint returned a 402 challenge
+  paymentMethods: PaymentMethod[]
+  pricing: PricingEntry[]
+  statusCode: number
+  error?: string
+  detectionMethod?: DetectionMethod  // Which signal triggered detection
+}
+```
+
+### `HealthEntry`
+
+```typescript
+interface HealthEntry {
+  identifier: string         // Service identifier (d-tag)
+  failureCount: number       // Consecutive probe failures
+  lastSuccess?: string       // ISO 8601 timestamp of last successful probe
+  lastChecked: string        // ISO 8601 timestamp of last probe attempt
+}
+```
+
+### Enum types
+
+```typescript
+type EventSource     = 'crawl' | 'github' | 'submit' | 'self'
+type ServiceStatus   = 'active' | 'stale' | 'unreachable'
+type PaymentRail     = 'l402' | 'x402' | 'cashu' | 'xcashu' | 'payment'
+type DetectionMethod =
+  | 'status-402' | 'ietf-payment' | 'cors-headers'
+  | 'well-known-l402' | 'well-known-x402' | 'payment-headers'
+  | 'html-meta' | 'link-header' | 'api-path-probe'
+```
+
+### Kind constants
+
+```typescript
+const KIND_SERVICE_ANNOUNCEMENT = 31402  // Indexed service announcement
+const KIND_COMMUNITY_SUGGESTION = 1402   // User-submitted URL suggestion
+const KIND_DELETION = 5                  // NIP-09 deletion
+```
+
+---
+
+## Configuration (`src/config.ts`)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `INDEXER_SECRET_KEY` | Yes | — | 64-char hex Nostr secret key for signing published events |
+| `GITHUB_TOKEN` | No | — | GitHub API token for the GitHub scanner channel |
+| `HEALTH_STATE_PATH` | No | `health-state.json` | Path to health state JSON persistence file |
+
+JSON config files in `config/`:
+- `config/relays.json` — relay URLs split into `subscribe` and `publish` arrays
+- `config/seed-urls.json` — seed URLs to probe on startup
+- `config/x402-seeds.json` — x402-specific seed URLs
+
+---
+
+## Orchestrator (`src/orchestrator.ts`)
+
+Entry point. Starts all five channels as scheduled tasks using `scheduleTask()`. Handles graceful shutdown on `SIGINT` / `SIGTERM`.
+
+```typescript
+function scheduleTask(name: string, fn: () => Promise<void>, intervalMs: number): () => void
+```
+
+Runs `fn` immediately, then at `intervalMs` intervals. Returns a stop function.
+
+---
+
+## Event Parser (`src/event-parser.ts`)
+
+Parses raw kind 31402 Nostr events into `DiscoveredService` objects.
+
+```typescript
+function parseServiceEvent(event: NostrEvent): DiscoveredService | null
+```
+
+Returns `null` for malformed or non-31402 events.
+
+---
+
+## 402 Ecosystem
+
+402-indexer is the discovery backbone:
+
+```
+toll-booth         L402 middleware — gate any API behind Lightning
+402-announce       Publish kind 31402 service announcements (operator-side)
+402-indexer        Crawl and index paid APIs (this service)
+402-mcp            AI agent client — discover, pay, consume 402 APIs
+402.pub            Live service directory (static site streaming kind 31402)
+```
+
+Operators who self-announce via 402-announce are detected by the Nostr aggregator channel. The indexer respects operator-published events and removes its own duplicate entries via NIP-09.
