@@ -1,6 +1,6 @@
 {
   "name": "402-indexer",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Nostr-native crawler that discovers L402 and x402 paid APIs and publishes kind 31402 events",
   "type": "module",
   "main": "dist/orchestrator.js",

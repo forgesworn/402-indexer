@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1 (2026-04-12)
+
+### Bug Fixes
+
+- bump picomatch to 4.0.4 (GHSA-3v7f-55p6-f55p) (deps)
+
+
+
 ## 0.2.0 (2026-04-12)
 
 ### Features
