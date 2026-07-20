@@ -44,7 +44,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "nostr-tools": "^2.23.9"
+    "nostr-tools": "^2.23.12"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
