@@ -12,11 +12,19 @@ The indexer finds paid APIs across multiple channels and announces them on Nostr
 
 ### Discovery channels
 
-- **Active prober** — HTTP probe for `WWW-Authenticate: L402` and `402 Payment Required` headers
+- **Active prober** — HTTP probe for `WWW-Authenticate: L402`, `X-LNURLcash` and `402 Payment Required` headers
 - **Nostr aggregator** — Subscribe to existing kind 31402 events across relays
 - **GitHub scanner** — Search GitHub for repos using L402/x402 patterns
 - **npm scanner** — Find packages depending on toll-booth, aperture, and other L402 libraries
 - **Community listener** — Accept kind 1402 suggestion events from users
+
+### Payment rails recognised
+
+`l402`, `x402`, `cashu`, `xcashu`, `lnurlcash` and `payment`. A rail outside
+that set is dropped from an announcement rather than indexed. For `lnurlcash`
+the parameters after the rail are the mint hosts whose bearer notes the service
+accepts, and the prober reads the same list out of an `X-LNURLcash` challenge on
+a live 402.
 
 ### Health monitoring
 

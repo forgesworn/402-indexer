@@ -43,6 +43,7 @@ The active prober recognises these signals:
 - `x402` -- On-chain stablecoin payments (Coinbase protocol)
 - `cashu` -- Cashu ecash tokens
 - `xcashu` -- Extended Cashu protocol
+- `lnurlcash` -- LUD-25 bearer note in an X-LNURLcash header (params are the accepted mint hosts)
 - `payment` -- IETF Payment (draft-ryan-httpauth-payment-01)
 
 ## Configuration

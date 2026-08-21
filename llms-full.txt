@@ -126,8 +126,8 @@ interface DiscoveredService {
 
 ```typescript
 interface PaymentMethod {
-  rail: PaymentRail          // 'l402' | 'x402' | 'cashu' | 'xcashu' | 'payment'
-  params: string[]           // Additional positional elements
+  rail: PaymentRail          // 'l402' | 'x402' | 'cashu' | 'xcashu' | 'lnurlcash' | 'payment'
+  params: string[]           // Additional positional elements (mint hosts for lnurlcash)
 }
 ```
 
@@ -171,7 +171,7 @@ interface HealthEntry {
 ```typescript
 type EventSource     = 'crawl' | 'github' | 'submit' | 'self'
 type ServiceStatus   = 'active' | 'stale' | 'unreachable'
-type PaymentRail     = 'l402' | 'x402' | 'cashu' | 'xcashu' | 'payment'
+type PaymentRail     = 'l402' | 'x402' | 'cashu' | 'xcashu' | 'lnurlcash' | 'payment'
 type DetectionMethod =
   | 'status-402' | 'ietf-payment' | 'cors-headers'
   | 'well-known-l402' | 'well-known-x402' | 'payment-headers'
