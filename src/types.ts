@@ -17,12 +17,15 @@ export function isValidStatus(s: string): s is ServiceStatus {
 }
 
 /** Payment method identifier — matches tag[1] of a pmi tag */
-export type PaymentRail = 'l402' | 'x402' | 'cashu' | 'xcashu' | 'payment'
+export type PaymentRail = 'l402' | 'x402' | 'cashu' | 'xcashu' | 'lnurlcash' | 'payment'
 
 /** A structured payment method from a pmi tag */
 export interface PaymentMethod {
   rail: PaymentRail
-  /** Additional positional elements (e.g. network, asset, receiver for x402) */
+  /**
+   * Additional positional elements (e.g. network, asset, receiver for x402;
+   * the accepted mint hosts for lnurlcash)
+   */
   params: string[]
 }
 

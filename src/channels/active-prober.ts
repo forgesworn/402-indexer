@@ -61,6 +61,76 @@ export function parsePaymentChallenge(
   }
 }
 
+/** Prefix of an LNURLcash payment request carried in an X-LNURLcash challenge. */
+const LNURLCASH_REQUEST_PREFIX = 'lnurlcashreq1'
+
+/** Guard rails on values taken from an untrusted 402 response. */
+const MAX_MINT_HOSTS = 20
+const MAX_MINT_HOST_LENGTH = 256
+
+/** Reduce a mint entry to a bare host so it matches how announcements list mints. */
+function normaliseMintHost(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  let host = value.trim()
+  if (host.length === 0 || host.length > MAX_MINT_HOST_LENGTH) return null
+  if (/[\u0000-\u001f\u007f]/.test(host)) return null
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(host)) {
+    try {
+      host = new URL(host).host
+    } catch {
+      return null
+    }
+  }
+  host = host.replace(/\/+$/, '')
+  return host.length > 0 ? host : null
+}
+
+/** Pull the accepted mint hosts out of a decoded LNURLcash request object. */
+function mintsFromRequest(request: unknown): string[] {
+  if (typeof request !== 'object' || request === null) return []
+  const record = request as Record<string, unknown>
+  const details = record.methodDetails as Record<string, unknown> | undefined
+  // 'm' is the compact wire key; 'mints' and 'methodDetails.mints' are the
+  // spelled-out forms, accepted so a challenge from either shape still indexes.
+  const candidate = record.m ?? record.mints ?? (typeof details === 'object' && details !== null ? details.mints : undefined)
+  if (!Array.isArray(candidate)) return []
+  const hosts: string[] = []
+  for (const entry of candidate) {
+    const host = normaliseMintHost(entry)
+    if (host && !hosts.includes(host)) hosts.push(host)
+    if (hosts.length >= MAX_MINT_HOSTS) break
+  }
+  return hosts
+}
+
+/**
+ * Parse an LNURLcash challenge from an X-LNURLcash header.
+ * The value is a payment request: the 'lnurlcashreq1' prefix followed by
+ * base64url JSON naming the mints whose bearer notes the service accepts.
+ * The header alone is enough to detect the rail; the mints are best-effort,
+ * and the price is left to the announcement rather than guessed here.
+ */
+export function parseLnurlcashChallenge(
+  headerValue: string,
+): { rail: 'lnurlcash'; params: string[]; pricing: PricingEntry[] } | null {
+  const value = headerValue.trim()
+  if (value.length === 0) return null
+
+  let params: string[] = []
+  if (value.toLowerCase().startsWith(LNURLCASH_REQUEST_PREFIX)) {
+    const encoded = value.slice(LNURLCASH_REQUEST_PREFIX.length)
+    try {
+      const json = Buffer.from(encoded, 'base64url').toString('utf8')
+      params = mintsFromRequest(JSON.parse(json))
+    } catch {
+      // An undecodable challenge still tells us the rail is on offer
+      params = []
+    }
+  }
+
+  return { rail: 'lnurlcash', params, pricing: [] }
+}
+
 /**
  * Parse an x402 challenge from response headers and body.
  */
@@ -121,6 +191,15 @@ export async function checkResponseSignals(
         paymentMethods.push({ rail: payment.rail, params: payment.params })
         pricing.push(...payment.pricing)
         detectionMethod = 'ietf-payment'
+      }
+    }
+
+    const xLnurlcash = response.headers.get('x-lnurlcash')
+    if (xLnurlcash) {
+      const lnurlcash = parseLnurlcashChallenge(xLnurlcash)
+      if (lnurlcash) {
+        paymentMethods.push({ rail: lnurlcash.rail, params: lnurlcash.params })
+        pricing.push(...lnurlcash.pricing)
       }
     }
 

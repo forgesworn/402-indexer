@@ -107,6 +107,19 @@ describe('parseServiceEvent', () => {
       expect(result!.paymentMethods[2]).toEqual({ rail: 'xcashu', params: ['some-param'] })
     })
 
+    it('parses an lnurlcash pmi with its mint hosts', () => {
+      const event = makeEvent({
+        tags: [
+          ['d', 'svc'],
+          ['name', 'Svc'],
+          ['pmi', 'lnurlcash', 'mint.example', 'mint2.example'],
+        ],
+      })
+      const result = parseServiceEvent(event)
+      expect(result!.paymentMethods).toHaveLength(1)
+      expect(result!.paymentMethods[0]).toEqual({ rail: 'lnurlcash', params: ['mint.example', 'mint2.example'] })
+    })
+
     it('ignores pmi tags with invalid rails', () => {
       const event = makeEvent({
         tags: [

@@ -2,7 +2,7 @@ import type { NostrEvent } from 'nostr-tools/pure'
 import type { DiscoveredService, PaymentMethod, PaymentRail, PricingEntry, EventSource, ServiceStatus } from './types.js'
 import { isValidEventSource, isValidStatus } from './types.js'
 
-const VALID_RAILS: ReadonlySet<string> = new Set(['l402', 'x402', 'cashu', 'xcashu', 'payment'])
+const VALID_RAILS: ReadonlySet<string> = new Set(['l402', 'x402', 'cashu', 'xcashu', 'lnurlcash', 'payment'])
 
 function getTagValue(tags: string[][], key: string): string | undefined {
   const tag = tags.find(t => t[0] === key)

@@ -8,6 +8,7 @@ import {
   parseL402Challenge,
   parseX402Challenge,
   parsePaymentChallenge,
+  parseLnurlcashChallenge,
 } from '../../src/channels/active-prober.js'
 
 // Mock global fetch
@@ -29,6 +30,10 @@ function mockResponse(status: number, headers: Record<string, string>, body = ''
     },
     ok: status >= 200 && status < 300,
   } as Response
+}
+
+function lnurlcashChallenge(request: unknown): string {
+  return 'lnurlcashreq1' + Buffer.from(JSON.stringify(request), 'utf8').toString('base64url')
 }
 
 describe('parseL402Challenge', () => {
@@ -115,6 +120,60 @@ describe('parsePaymentChallenge', () => {
   })
 })
 
+describe('parseLnurlcashChallenge', () => {
+  it('detects the rail and the accepted mints from a payment request', () => {
+    const result = parseLnurlcashChallenge(lnurlcashChallenge({ a: '100', u: 'sat', m: ['mint.example', 'mint2.example'] }))
+    expect(result).not.toBeNull()
+    expect(result!.rail).toBe('lnurlcash')
+    expect(result!.params).toEqual(['mint.example', 'mint2.example'])
+    expect(result!.pricing).toEqual([])
+  })
+
+  it('accepts the spelled-out mints key', () => {
+    const result = parseLnurlcashChallenge(lnurlcashChallenge({ mints: ['mint.example'] }))
+    expect(result!.params).toEqual(['mint.example'])
+  })
+
+  it('accepts mints nested under methodDetails', () => {
+    const result = parseLnurlcashChallenge(lnurlcashChallenge({ methodDetails: { mints: ['mint.example'] } }))
+    expect(result!.params).toEqual(['mint.example'])
+  })
+
+  it('reduces mint discovery URLs to bare hosts and drops duplicates', () => {
+    const result = parseLnurlcashChallenge(lnurlcashChallenge({ m: ['https://mint.example/', 'mint.example'] }))
+    expect(result!.params).toEqual(['mint.example'])
+  })
+
+  it('ignores non-string and oversized mint entries', () => {
+    const result = parseLnurlcashChallenge(lnurlcashChallenge({ m: [42, '', 'x'.repeat(300), 'mint.example'] }))
+    expect(result!.params).toEqual(['mint.example'])
+  })
+
+  it('caps the number of mints taken from an untrusted response', () => {
+    const mints = Array.from({ length: 30 }, (_, i) => `mint${i}.example`)
+    const result = parseLnurlcashChallenge(lnurlcashChallenge({ m: mints }))
+    expect(result!.params).toHaveLength(20)
+  })
+
+  it('still reports the rail when the challenge cannot be decoded', () => {
+    const result = parseLnurlcashChallenge('lnurlcashreq1not-valid-base64url-json')
+    expect(result).not.toBeNull()
+    expect(result!.rail).toBe('lnurlcash')
+    expect(result!.params).toEqual([])
+  })
+
+  it('still reports the rail for a value without the request prefix', () => {
+    const result = parseLnurlcashChallenge('lnurlw://mint.example/withdraw?k1=abc')
+    expect(result).not.toBeNull()
+    expect(result!.params).toEqual([])
+  })
+
+  it('returns null for an empty header', () => {
+    expect(parseLnurlcashChallenge('')).toBeNull()
+    expect(parseLnurlcashChallenge('   ')).toBeNull()
+  })
+})
+
 describe('parseX402Challenge', () => {
   it('detects x402 from X-Payment-Required header', () => {
     const body = JSON.stringify({
@@ -174,6 +233,28 @@ describe('checkResponseSignals', () => {
     expect(result!.paymentMethods).toHaveLength(2)
     expect(result!.paymentMethods[0].rail).toBe('l402')
     expect(result!.paymentMethods[1].rail).toBe('payment')
+  })
+
+  it('detects an lnurlcash endpoint from the X-LNURLcash header', async () => {
+    const resp = mockResponse(402, {
+      'x-lnurlcash': lnurlcashChallenge({ a: '100', u: 'sat', m: ['mint.example'] }),
+    })
+    const result = await checkResponseSignals('https://api.example.com', resp)
+    expect(result).not.toBeNull()
+    expect(result!.is402).toBe(true)
+    expect(result!.detectionMethod).toBe('status-402')
+    expect(result!.paymentMethods).toHaveLength(1)
+    expect(result!.paymentMethods[0]).toEqual({ rail: 'lnurlcash', params: ['mint.example'] })
+  })
+
+  it('detects lnurlcash alongside L402 on the same response', async () => {
+    const resp = mockResponse(402, {
+      'www-authenticate': 'L402 macaroon="abc", invoice="lnbc1p"',
+      'x-lnurlcash': lnurlcashChallenge({ m: ['mint.example'] }),
+    })
+    const result = await checkResponseSignals('https://api.example.com', resp)
+    expect(result!.paymentMethods).toHaveLength(2)
+    expect(result!.paymentMethods.map(m => m.rail)).toEqual(['l402', 'lnurlcash'])
   })
 
   it('detects via CORS expose headers', async () => {

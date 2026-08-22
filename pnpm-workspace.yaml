@@ -1,0 +1,5 @@
+packages: []
+
+# CI installs with pnpm 11, which refuses to skip a dependency build script.
+allowBuilds:
+  esbuild: true

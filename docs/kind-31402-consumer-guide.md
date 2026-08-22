@@ -89,7 +89,7 @@ A kind 31402 event from 402-indexer looks like this:
 | `name` | 1 | Human-readable service name |
 | `about` | 0–1 | Service description |
 | `url` | 1–10 | Endpoint URLs (transport addresses) |
-| `pmi` | 0–N | Payment method info: `["pmi", "<rail>", ...params]`. Rail is one of `l402`, `x402`, `cashu`, `xcashu`, `payment`. |
+| `pmi` | 0–N | Payment method info: `["pmi", "<rail>", ...params]`. Rail is one of `l402`, `x402`, `cashu`, `xcashu`, `lnurlcash`, `payment`. |
 | `price` | 0–N | Per-capability pricing: `["price", "<capability>", "<amount>", "<currency>"]`. Amount is in smallest unit (satoshis, cents). |
 | `source` | 1 | How the service was discovered: `crawl`, `github`, `submit`, or `self` |
 | `status` | 1 | Health status: `active`, `stale`, or `unreachable` |
