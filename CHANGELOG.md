@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 (2026-08-22)
+
+### Features
+
+- index lnurlcash announcements and detect the rail on live 402s (#31)
+
+
+
 ## 0.2.2 (2026-04-12)
 
 ### Bug Fixes
