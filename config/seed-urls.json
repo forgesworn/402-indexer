@@ -1,6 +1,6 @@
 [
-  "https://jokes.trotters.dev/api/joke",
-  "https://satgate.trotters.dev/v1/chat",
+  "https://jokes.forgesworn.dev/api/joke",
+  "https://satgate.forgesworn.dev/v1/chat",
   "https://routing.trotters.cc/route",
 
   "https://api.fewsats.com/v0/gateway",
