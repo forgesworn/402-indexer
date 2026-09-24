@@ -3,7 +3,6 @@
 > Nostr-native crawler that discovers L402 and x402 paid APIs across the web and publishes kind 31402 events for decentralised service discovery. Feeds the 402.pub directory and the 402-mcp AI agent client.
 
 GitHub: https://github.com/forgesworn/402-indexer
-Version: 0.1.0
 
 ## What it does
 
@@ -166,6 +165,14 @@ interface HealthEntry {
 }
 ```
 
+### `HealthState`
+
+```typescript
+interface HealthState {
+  entries: Record<string, HealthEntry>  // Keyed by service identifier
+}
+```
+
 ### Enum types
 
 ```typescript
@@ -223,7 +230,9 @@ Parses raw kind 31402 Nostr events into `DiscoveredService` objects.
 function parseServiceEvent(event: NostrEvent): DiscoveredService | null
 ```
 
-Returns `null` for malformed or non-31402 events.
+Returns `null` if the event is missing a required `d` or `name` tag. Does not
+check the event kind itself; callers are expected to filter by kind 31402
+before parsing.
 
 ---
 
