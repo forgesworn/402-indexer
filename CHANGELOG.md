@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 (2026-10-12)
+
+### Features
+
+- recognise signed public storage without paid API crawling (#41)
+
+
+
 ## 0.3.0 (2026-08-22)
 
 ### Features
