@@ -1,6 +1,8 @@
 import type { NostrEvent } from 'nostr-tools/pure'
 import type { DiscoveredService, PaymentMethod, PaymentRail, PricingEntry, EventSource, ServiceStatus } from './types.js'
 import { isValidEventSource, isValidStatus } from './types.js'
+import { parseStorageAnnouncement } from '402-announce/storage'
+import { claimsStorage } from './storage.js'
 
 const VALID_RAILS: ReadonlySet<string> = new Set(['l402', 'x402', 'cashu', 'xcashu', 'lnurlcash', 'payment'])
 
@@ -17,7 +19,19 @@ function getAllTags(tags: string[][], key: string): string[][] {
   return tags.filter(t => t[0] === key)
 }
 
-export function parseServiceEvent(event: NostrEvent): DiscoveredService | null {
+/** Parse public announcements; storage claims require shared signature and closed-schema validation. */
+export function parseServiceEvent(event: NostrEvent, now = Math.floor(Date.now()/1000)): DiscoveredService | null {
+  if (claimsStorage(event)) {
+    try {
+      const storage = parseStorageAnnouncement(event,{now})
+      const d = storage.description
+      return {identifier:d.identifier,name:d.name,about:d.about,urls:d.origins,
+        paymentMethods:event.tags.filter(t => t[0] === 'pmi').map(t => ({rail:'wildbloom-checkout',params:t.slice(2)})),
+        pricing:d.services.map(s => ({capability:s.id,amount:s.type === 'paid-storage' ? s.price_msat/1000 : 0,currency:'sats'})),
+        source:'self',status:storage.freshness === 'current' && d.state === 'published' ? 'active' : 'stale',
+        pubkey:event.pubkey,topics:event.tags.filter(t => t[0] === 't').map(t => t[1]),storage}
+    } catch { return null }
+  }
   const { tags, pubkey, content } = event
 
   const identifier = getTagValue(tags, 'd')

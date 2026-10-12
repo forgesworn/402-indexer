@@ -17,7 +17,7 @@ export function isValidStatus(s: string): s is ServiceStatus {
 }
 
 /** Payment method identifier — matches tag[1] of a pmi tag */
-export type PaymentRail = 'l402' | 'x402' | 'cashu' | 'xcashu' | 'lnurlcash' | 'payment'
+export type PaymentRail = 'l402' | 'x402' | 'cashu' | 'xcashu' | 'lnurlcash' | 'payment' | 'wildbloom-checkout'
 
 /** A structured payment method from a pmi tag */
 export interface PaymentMethod {
@@ -38,6 +38,8 @@ export interface PricingEntry {
 
 /** A discovered or self-announced service */
 export interface DiscoveredService {
+  /** Verified public storage claim, including expired/withdrawn watermarks. Never re-sign it. */
+  storage?: import('402-announce/storage').ParsedStorageAnnouncement
   /** Nostr d-tag identifier */
   identifier: string
   /** Service name */

@@ -2,10 +2,13 @@ import { Relay } from 'nostr-tools/relay'
 import { verifyEvent } from 'nostr-tools/pure'
 import type { NostrEvent } from 'nostr-tools/pure'
 import { KIND_SERVICE_ANNOUNCEMENT } from '../types.js'
+import { claimsStorage, StorageWatermarks } from '../storage.js'
+import { parseStorageAnnouncement } from '402-announce/storage'
 
 const MAX_EVENTS = 1000
 const SUBSCRIBE_TIMEOUT_MS = 15_000
 const CONNECT_TIMEOUT_MS = 10_000
+const storageWatermarks = new StorageWatermarks()
 
 /**
  * Check if an event was published by the indexer.
@@ -18,13 +21,16 @@ export function isIndexerEvent(event: NostrEvent, indexerPubkey: string): boolea
  * Deduplicate events by pubkey + d-tag, keeping the newest.
  * This is Nostr's native replaceable event semantics (NIP-33).
  */
-export function deduplicateServices(events: NostrEvent[]): NostrEvent[] {
+export function deduplicateServices(events: NostrEvent[], now = Math.floor(Date.now()/1000)): NostrEvent[] {
   const map = new Map<string, NostrEvent>()
   for (const event of events) {
+    if (claimsStorage(event)) {
+      try { parseStorageAnnouncement(event,{now}) } catch { continue }
+    }
     const dTag = event.tags.find(t => t[0] === 'd')?.[1] ?? ''
     const key = `${event.pubkey}:${dTag}`
     const existing = map.get(key)
-    if (!existing || event.created_at > existing.created_at) {
+    if (!existing || event.created_at > existing.created_at || (event.created_at === existing.created_at && event.id < existing.id)) {
       map.set(key, event)
     }
   }
@@ -43,6 +49,7 @@ export function findSupersededIndexerEvents(
   const operatorUrls = new Set<string>()
   for (const event of events) {
     if (event.pubkey === indexerPubkey) continue
+    if (claimsStorage(event)) continue // A storage offer does not supersede a different paid-API flow.
     for (const tag of event.tags) {
       if (tag[0] === 'url') operatorUrls.add(tag[1])
     }
@@ -108,5 +115,5 @@ export async function aggregateFromRelays(
   )
 
   void results // suppress unused variable warning
-  return deduplicateServices(events)
+  return deduplicateServices([...events.filter(e => !claimsStorage(e)),...storageWatermarks.accept(events)])
 }
