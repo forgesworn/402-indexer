@@ -62,3 +62,13 @@ Relay and seed URL configuration via JSON files in `config/`.
 - **402-mcp** -- AI agents discover, pay for, and consume 402 APIs
 - **402.pub** -- Live service directory
 - **402-indexer** -- Crawl and index paid APIs (this package)
+
+## Public storage discovery
+
+Versioned Wildbloom paid storage and free mirror shelter are recognised through
+`402-announce/storage` 2.3.0. They retain the operator signature and use the
+separate Wildbloom checkout protocol; free shelter is mirror-only and best-effort.
+Latest signed expiry/withdrawal watermarks remain in process memory.
+`INDEXER_STORAGE_HEALTH=true` separately enables bounded unsigned HTTPS
+`/services/v1` inspection with public DNS pins; onion transport is refused.
+No storage quotes or payments are made. See [the contract and limits](docs/STORAGE-DISCOVERY.md).

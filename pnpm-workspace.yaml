@@ -1,5 +1,14 @@
 packages: []
 
-# CI installs with pnpm 11, which refuses to skip a dependency build script.
+# Compatible patches for the test runner's transitive development dependencies.
+overrides:
+  vite: 7.3.5
+  source-map-js: 1.2.2
+
+# CI installs with pinned pnpm 12; only the existing esbuild hook is reviewed.
 allowBuilds:
   esbuild: true
+
+minimumReleaseAgeExclude:
+  # This exact shared release was built, tested and provenance-published in the coordinated feature rollout.
+  - 402-announce@2.3.0

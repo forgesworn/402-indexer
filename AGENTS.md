@@ -46,6 +46,7 @@ src/
     health-checker.ts          # Daily endpoint verification
     lifecycle.ts               # active/stale/unreachable/delist transitions
 tests/                         # Mirrors src/ structure
+src/storage.ts                 # Verified storage watermarks and opt-in bounded inspection
 config/                        # relays.json, seed-urls.json, x402-seeds.json
 deploy/                        # systemd service file + .env.example
 ```
@@ -70,6 +71,12 @@ Relay URLs and seed URLs are loaded from `config/relays.json`,
 - Conventional commits (`type: description`); no `Co-Authored-By` lines.
 - All public functions should have JSDoc comments.
 - Use `nostr-tools` for all Nostr event handling.
+- Public Wildbloom storage profiles use `402-announce/storage`; retain the
+  original operator signature. Select latest valid records before filtering
+  expiry or availability. Never crawl/re-sign them as ordinary paid APIs.
+- `INDEXER_STORAGE_HEALTH=true` explicitly enables bounded `/services/v1`
+  inspection. It pins validated public DNS into HTTPS sockets and refuses onion
+  transport. Full capacity is a reachable service, not an HTTP-402 failure.
 
 ## Adding a new discovery channel
 

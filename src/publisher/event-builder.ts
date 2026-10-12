@@ -4,7 +4,9 @@ import type { DiscoveredService } from '../types.js'
 import { KIND_SERVICE_ANNOUNCEMENT } from '../types.js'
 import { hexToBytes } from '../utils.js'
 
+/** Sign generic indexer metadata; public storage claims must keep the operator's original signature. */
 export function buildServiceEvent(secretKeyHex: string, service: DiscoveredService): VerifiedEvent {
+  if (service.storage) throw new Error('Operator storage profiles must retain their original signature.')
   const tags: string[][] = [
     ['d', service.identifier],
     ['name', service.name],

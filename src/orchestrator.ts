@@ -17,6 +17,7 @@ import { Relay } from 'nostr-tools/relay'
 import { verifyEvent, getPublicKey } from 'nostr-tools/pure'
 import type { NostrEvent } from 'nostr-tools/pure'
 import { hexToBytes } from './utils.js'
+import { parseServiceEvent } from './event-parser.js'
 
 /**
  * Schedule a task to run immediately, then at a fixed interval.
@@ -60,6 +61,7 @@ async function main(): Promise<void> {
   const config = loadConfig()
   const store = new StateStore(config.healthStatePath)
   const indexedServices: Map<string, DiscoveredService> = new Map()
+  const storageServices: Map<string, DiscoveredService> = new Map()
   // Track indexer event IDs for NIP-09 deletion
   const indexerEventIds: Map<string, string> = new Map()
   // Derive indexer pubkey from secret key for NIP-09 dedup
@@ -155,6 +157,11 @@ async function main(): Promise<void> {
     console.log(`[nostr-aggregator] subscribing to ${config.subscribeRelays.length} relays...`)
     const events = await aggregateFromRelays(config.subscribeRelays)
     console.log(`[nostr-aggregator] received ${events.length} events`)
+    // Preserve the operator's signature. Never convert a storage listing to a crawl event.
+    for (const event of events) {
+      const service = parseServiceEvent(event)
+      if (service?.storage) storageServices.set(`${event.pubkey}:${service.identifier}`,service)
+    }
 
     // Check for indexer events superseded by operator self-announcements
     const superseded = findSupersededIndexerEvents(events, indexerPubkey)
@@ -190,6 +197,9 @@ async function main(): Promise<void> {
 
   // --- Channel 5: Health checks + lifecycle ---
   const stopHealth = scheduleTask('health-checker', async () => {
+    // Direct HTTPS inspection is a separate operator opt-in. Onion services never use direct DNS/HTTP.
+    if (process.env.INDEXER_STORAGE_HEALTH === 'true')
+      await runHealthChecks([...storageServices.values()],store,config.userAgent)
     const services = [...indexedServices.values()]
     if (services.length === 0) return
 
