@@ -4,6 +4,12 @@
 
 GitHub: https://github.com/forgesworn/402-indexer
 
+## ForgeSworn ecosystem
+
+- [ForgeSworn library guide](https://forgesworn.dev/llms.txt): Find related libraries, tools and integration guides by task and runtime.
+- [ForgeSworn on GitHub](https://github.com/forgesworn): Browse the organisation’s public repositories.
+- [Project source](https://github.com/forgesworn/402-indexer): Canonical source repository, documentation and release information.
+
 ## What it does
 
 The indexer finds paid APIs through multiple discovery channels and announces them on Nostr so clients like 402-mcp and the 402.pub directory can discover them automatically. Services are health-checked daily; unreachable endpoints are marked stale and eventually delisted.
